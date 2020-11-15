@@ -1,13 +1,51 @@
-## PHP 8.0 on Docker
+FROM php:8.0.0RC4-apache
 
-This is example of docker-compose build to run **php8.0** on Docker.
-It includes Apache and most needed php extentions.
+RUN apt-get update
 
-### Installation
-Clone this repository and run
+# 1. development packages
+RUN apt-get install -y \
+    libonig-dev\
+    git \
+    zip \
+    curl \
+    sudo \
+    unzip \
+    libicu-dev \
+    libzip-dev \
+    libbz2-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libmcrypt-dev \
+    libreadline-dev \
+    libfreetype6-dev \
+    default-mysql-client \
+    g++
 
-```sh
-$ docker-compose up -d
-```
+# 2. apache configs + document root
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-After that go to the ``localhost:8000``
+# 3. mod_rewrite for URL rewrite and mod_headers for .htaccess extra headers like Access-Control-Allow-Origin-
+RUN a2enmod rewrite headers
+
+# 4. start with base php config, then add extensions
+RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
+
+RUN docker-php-ext-install \
+    bz2 \
+    intl \
+    iconv \
+    bcmath \
+    opcache \
+    calendar \
+    mbstring \
+    pdo_mysql \
+    zip
+
+# 5. composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# 6. init
+COPY ./run/init.sh /root/init.sh
+RUN chmod +x /root/init.sh
