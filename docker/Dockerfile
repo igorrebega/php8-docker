@@ -1,4 +1,4 @@
-FROM php:8.0.0RC4-apache
+FROM php:8.0.1-apache
 
 RUN apt-get update
 
